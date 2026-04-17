@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>NeonLink Messenger</title>
+
+<style>
+
+/* GLOBAL */
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+input, textarea{
+  -webkit-user-select:text;
+  user-select:text;
+}
+
+/* BODY */
+body{
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background: radial-gradient(circle,#0f2027,#0b141a,#05080c);
+  font-family:sans-serif;
+  color:white;
+  touch-action:manipulation;
+}
+
+/* CARD */
+.container{
+  width:92%;
+  max-width:420px;
+  background:#111b21;
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  text-align:center;
+}
+
+/* TITLE */
+.title{
+  font-size:18px;
+  font-weight:bold;
+  color:#25d366;
+}
+.subtitle{
+  font-size:11px;
+  color:#777;
+  margin-bottom:16px;
+}
+
+/* INPUT */
+.input-box{
+  position:relative;
+  margin-top:12px;
+}
+
+input, textarea{
+  width:100%;
+  padding:12px 40px 12px 12px;
+  border-radius:12px;
+  border:none;
+  outline:none;
+  color:white;
+}
+
+#number{
+  background:#1f2a30;
+}
+
+#message{
+  background:#162027;
+  margin-top:12px;
+  min-height:100px;
+  resize:none;
+}
+
+/* ICON */
+.contact-icon{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  cursor:pointer;
+}
+
+/* BUTTON */
+button{
+  margin-top:10px;
+  padding:10px;
+  border:none;
+  border-radius:12px;
+  cursor:pointer;
+}
+
+.btn-send{
+  background:#25d366;
+}
+
+.btn-contact{
+  background:#2a3942;
+  color:white;
+}
+
+/* CHAT AREA */
+.chat{
+  margin-top:12px;
+  height:140px;
+  overflow:auto;
+  background:#0b141a;
+  border-radius:10px;
+  padding:8px;
+  text-align:left;
+  font-size:12px;
+}
+
+/* BUBBLE */
+.msg{
+  margin:4px 0;
+  padding:6px 8px;
+  border-radius:8px;
+  max-width:80%;
+  word-wrap:break-word;
+}
+
+.in{
+  background:#202c33;
+}
+
+.out{
+  background:#25d366;
+  color:black;
+  margin-left:auto;
+}
+
+/* FOOTER */
+.footer{
+  margin-top:10px;
+  font-size:10px;
+  color:#666;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="title">NEONLINK MESSENGER</div>
+  <div class="subtitle">Realtime WhatsApp System</div>
+
+  <!-- NOMOR -->
+  <div class="input-box">
+    <input id="number" placeholder="08xxx / 62xxx / +62xxx">
+    <span class="contact-icon" onclick="pickContact()">📞</span>
+  </div>
+
+  <!-- PESAN -->
+  <textarea id="message" placeholder="Tulis pesan..."></textarea>
+
+  <!-- BUTTON -->
+  <button class="btn-send" onclick="send()">Kirim</button>
+  <button class="btn-contact" onclick="pickContact()">Kontak</button>
+
+  <!-- CHAT -->
+  <div class="chat" id="chat"></div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    Zulfahmi Afnula © 2026 — All Rights Reserved
+  </div>
+
+</div>
+
+<!-- SOCKET -->
+<script src="http://127.0.0.1:3000/socket.io/socket.io.js"></script>
+
+<script>
+
+// ================= NORMALIZE =================
+function normalizeNumber(num){
+  num = num.replace(/\D/g,'')
+  if(num.startsWith('0')) num = '62' + num.slice(1)
+  if(!num.startsWith('62')) num = '62' + num
+  return num
+}
+
+// ================= CHAT ADD =================
+function addMessage(text, type){
+  const chat = document.getElementById("chat")
+  const div = document.createElement("div")
+  div.className = "msg " + type
+  div.innerText = text
+  chat.appendChild(div)
+  chat.scrollTop = chat.scrollHeight
+}
+
+// ================= CONTACT =================
+async function pickContact(){
+  try{
+    if(!navigator.contacts){
+      alert("Device tidak support kontak")
+      return
+    }
+
+    const c = await navigator.contacts.select(['tel'], {multiple:false})
+    if(c.length){
+      document.getElementById("number").value = c[0].tel[0]
+    }
+  }catch(e){}
+}
+
+// ================= SEND =================
+async function send(){
+  const number = normalizeNumber(document.getElementById("number").value)
+  const message = document.getElementById("message").value
+
+  if(!number || !message){
+    addMessage("isi nomor & pesan dulu", "in")
+    return
+  }
+
+  addMessage(message, "out")
+
+  try{
+    await fetch("http://127.0.0.1:3000/send",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ number, message })
+    })
+  }catch(e){
+    addMessage("error koneksi", "in")
+  }
+
+  document.getElementById("message").value = ""
+}
+
+// ================= SOCKET =================
+const socket = io("http://127.0.0.1:3000")
+
+socket.on("incoming",(data)=>{
+  addMessage(data.text, "in")
+})
+
+socket.on("outgoing",(data)=>{
+  // optional kalau mau tampil dari server
+})
+
+// ================= DISABLE ZOOM EXTRA =================
+document.addEventListener('gesturestart', e => e.preventDefault())
+
+</script>
+
+</body>
+</html>
